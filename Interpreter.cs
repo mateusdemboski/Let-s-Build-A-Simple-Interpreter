@@ -45,7 +45,7 @@ namespace Interpreter
             var result = "";
             while (this.CurrentChar.HasValue && char.IsDigit(this.CurrentChar.Value))
             {
-                result += this.CurrentChar;
+                result += this.CurrentChar.Value;
                 this.Advance();
             }
             return Int32.Parse(result);
@@ -81,10 +81,10 @@ namespace Interpreter
                     return new Token(Types.MINUS, "-");
                 }
 
+                throw Error();
             }
 
-            
-            throw Error();
+            return new Token(Types.EOF, null);
         }
 
         /// <summary>
