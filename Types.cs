@@ -4,6 +4,7 @@ namespace Interpreter
     {
         INTEGER,
         PLUS,
+        MINUS,
         EOF
     }
 }

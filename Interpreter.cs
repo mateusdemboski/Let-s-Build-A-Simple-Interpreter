@@ -10,17 +10,47 @@ namespace Interpreter
         private int Pos = 0;
         /// current token instance
         private Token CurrentToken;
+        private char? CurrentChar;
 
         public Interpreter(string text)
         {
             this.Text = text;
+            this.CurrentChar = this.Text[this.Pos];
         }
 
         private Exception Error()
         {
             return new Exception("Error parsing input");
         }
-        
+
+        /// Advance the 'pos' pointer and set the 'CurrentChar' variable.
+        private void Advance()
+        {
+            this.Pos++;
+            if(this.Pos > this.Text.Length -1)
+                this.CurrentChar = null; // Indicates end of input
+            else
+                this.CurrentChar = this.Text[this.Pos];
+        }
+
+        private void SkipWhitespace()
+        {
+            while (this.CurrentChar.HasValue && Char.IsWhiteSpace(this.CurrentChar.Value))
+                this.Advance();
+        }
+
+        /// <returns>A (multidigit) integer consumed from the input.</returns>
+        private int Integer()
+        {
+            var result = "";
+            while (this.CurrentChar.HasValue && char.IsDigit(this.CurrentChar.Value))
+            {
+                result += this.CurrentChar;
+                this.Advance();
+            }
+            return Int32.Parse(result);
+        }
+
         /// Lexical analyzer (also known as scanner or tokenizer)
         /// <summary>
         /// This method is responsible for breaking a sentence
@@ -28,31 +58,32 @@ namespace Interpreter
         /// </summary>
         private Token GetNextToken()
         {
-            // is `this.Pos` index past the end of the `this.Text` ?
-            // if so, then return EOF token because there is no more
-            // input left to convert into tokens
-            if(this.Pos > Text.Length -1)
-                return new Token(Types.EOF, null);
-
-            // get a character at the position this.Pos and decide
-            // what token to create based on the single character
-            var currentChar = this.Text[this.Pos];
-
-            // if the character is a digit then convert it to
-            // integer, create an INTEGER token, increment this.Pos
-            // index to point to the next character after the digit,
-            // and return the INTEGER token
-            if(Char.IsNumber(currentChar))
+            while (this.CurrentChar.HasValue)
             {
-                this.Pos++;
-                return new Token(Types.INTEGER, currentChar.ToString());
-            }
-            else if (currentChar == '+')
-            {
-                this.Pos++;
-                return new Token(Types.PLUS, currentChar.ToString());
+                if (Char.IsWhiteSpace(this.CurrentChar.Value))
+                {
+                    this.SkipWhitespace();
+                    continue;
+                }
+
+                if(Char.IsDigit(this.CurrentChar.Value))
+                {
+                    return new Token(Types.INTEGER, this.Integer().ToString());
+                }
+                else if (this.CurrentChar.Value == '+')
+                {
+                    this.Advance();
+                    return new Token(Types.PLUS, "+");
+                }
+                else if (this.CurrentChar.Value == '-')
+                {
+                    this.Advance();
+                    return new Token(Types.MINUS, "-");
+                }
+
             }
 
+            
             throw Error();
         }
 
@@ -70,31 +101,39 @@ namespace Interpreter
                 throw Error();
         }
 
-        /// Expr -> INTEGER PLUS INTEGER
+        /// Parser / Interpreter
         public int Expr()
         {
             // set current token to the first token taken from the input
             this.CurrentToken = this.GetNextToken();
             
-            // we expect the current token to be a single-digit integer
+            // we expect the current token to be an integer
             var left = this.CurrentToken;
             this.Eat(Types.INTEGER);
 
-            // we expect the current token to be a '+' token
+            // we expect the current token to be a '+' or '-' token
             var op = this.CurrentToken;
-            this.Eat(Types.PLUS);
+            if(op.Type == Types.PLUS)
+                this.Eat(Types.PLUS);
+            else
+                this.Eat(Types.MINUS);
             
-            // we expect the current token to be a single-digit integer
+            // we expect the current token to be an integer
             var right = this.CurrentToken;
             this.Eat(Types.INTEGER);
             // after the above call the this.CurrentToken is set to
             // EOF token
 
-            // at this point INTEGER PLUS INTEGER sequence of tokens
+            // at this point either the INTEGER PLUS INTEGER or
+            // the INTEGER MINUS INTEGER sequence of tokens
             // has been successfully found and the method can just
-            // return the result of adding two integers, thus
-            // effectively interpreting client input
-            var result = Int32.Parse(left.Value) + Int32.Parse(right.Value);
+            // return the result of adding or subtracting two integers,
+            // thus effectively interpreting client input
+            int result;
+            if(op.Type == Types.PLUS)
+                result = Int32.Parse(left.Value) + Int32.Parse(right.Value);
+            else 
+                result = Int32.Parse(left.Value) - Int32.Parse(right.Value);
             return result;
         }
     }
